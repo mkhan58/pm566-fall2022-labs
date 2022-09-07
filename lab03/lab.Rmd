@@ -2,7 +2,7 @@
 title: "lab03"
 author: "Misha Khan"
 date: "9/7/2022"
-output: html_document
+output: github_document
 ---
 
 ## Step 1. Read in the data
@@ -31,10 +31,86 @@ str(met)
 table(met$year)
 table(met$day)
 table(met$hour)
+```
+```{r}
 summary(met$temp)
 summary(met$elev)
 summary(met$wind.sp)
-
 ```
+Replace the elevations with 9999 as NA
+```{r}
+met[met$elev==9999.0] <- NA
+summary(met$elev)
+```
+
+The weather station with the highest elevation is at `r max(met$elev, na.rm = T)` meters.
+
+We also have the issue of the minimum temperature being -40C, so we should remove those observations.
+```{r}
+met <- met[temp>-40]
+met2 <- met[order(temp)]
+head(met2)
+```
+We again notice that there is a `r min(met$temp, na.rm = T)`C temperature reading that seems suspicious.
+
+## Step 5. Check the data against an external data source.
+```{r}
+met <- met[temp>-15]
+met2 <- met[order(temp)]
+head(met2)
+```
+## Step 6. Calculate summary statistics
+
+Select the weather station with maximum elevation
+```{r}
+#Subset of data is created
+elev <- met[elev==max(elev)]
+summary(elev)
+```
+
+```{r}
+#Wind speeds at the highest elevation
+met[elev == max(elev, na.rm = T), summary(wind.sp)]
+#Wind speeds are between 0-21
+```
+```{r}
+met[elev == max(elev, na.rm = T), summary(temp)]
+#Temps are between 1-15
+```
+
+Look at the correlation between temperature and wind speed; look at the correlation between temperature and wind speed with hour and day of the month
+```{r}
+#Use everything includes NA, use complete does not include NA values
+met[elev == max(elev, na.rm = T), .(
+  temp_wind     = cor(temp, wind.sp, use = "complete"),
+  temp_hour     = cor(temp, hour, use = "complete"),
+  wind.sp_day   = cor(wind.sp, day, use = "complete"),
+  wind.sp_hour  = cor(wind.sp, hour, use = "complete")   
+)]
+```
+#Step 7. Explanatory graphs
+```{r}
+hist(met$elev, breaks = 100)
+hist(met$wind.sp)
+hist(met$temp)
+```
+Look at where the weather station with highest elevation is located
+```{r}
+if(!require(leaflet)) {
+  install.packages("leaflet")
+  library(leaflet)
+}
+
+elev <- met[elev == max(elev)]
+```
+
+
+```{r}
+leaflet(elev) %>%
+  addProviderTiles('OpenStreetMap') %>% 
+  addCircles(lat=~lat,lng=~lon, opacity=1, fillOpacity=1, radius=100)
+```
+
+
 
 
