@@ -1,8 +1,9 @@
 ---
 title: "lab03"
 author: "Misha Khan"
-date: "9/7/2022"
+date: "`r format(Sys.Date())`"
 output: github_document
+always_allow_html: true
 ---
 
 ## Step 1. Read in the data
@@ -111,6 +112,21 @@ leaflet(elev) %>%
   addCircles(lat=~lat,lng=~lon, opacity=1, fillOpacity=1, radius=100)
 ```
 
+```{r}
+library(lubridate)
+elev$date <- with(elev, ymd_h(paste(year, month, day, hour, sep= ' ')))
+summary(elev$date)
+```
+```{r}
+elev <- elev[order(date)]
+head(elev)
+```
 
+```{r}
+plot(elev$date, elev$temp, type='l')
+```
+```{r}
+plot(elev$date, elev$wind.sp, type='l')
+```
 
 
