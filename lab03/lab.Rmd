@@ -76,7 +76,7 @@ met[elev == max(elev, na.rm = T), summary(wind.sp)]
 ```
 ```{r}
 met[elev == max(elev, na.rm = T), summary(temp)]
-#Temps are between 1-15
+#Temps are between 1-15 
 ```
 
 Look at the correlation between temperature and wind speed; look at the correlation between temperature and wind speed with hour and day of the month
