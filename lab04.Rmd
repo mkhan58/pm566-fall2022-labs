@@ -1,0 +1,112 @@
+---
+title: "PM566 Lab 4"
+author: "Misha Khan"
+date: "9/14/2022"
+output: html_document
+---
+```{r install-libraries}
+library(lubridate)
+library(tidyverse)
+library(data.table)
+
+```
+
+
+Load data
+```{r}
+if (!file.exists("../lab03/met_all.gz"))
+  download.file(
+    url = "https://raw.githubusercontent.com/USCbiostats/data-science-data/master/02_met/met_all.gz",
+    destfile = "met_all.gz",
+    method   = "libcurl",
+    timeout  = 60
+  )
+met <- data.table::fread("met_all.gz")
+```
+
+Prepare the data
+
+Remove temperatures less than -17C abd cgabge ekev 9999 to missing value code
+```{r remove-low-temp}
+met <- met[temp > -17][elev == 9999.0, elev := NA]
+```
+
+Make sure there are no missing data in the key variables coded as 9999, 999, etc
+```{r}
+#just another way you can do it separate
+#met[met$elev == 9999.0] <- NA
+#summary(met$elev) #check NAs
+```
+
+Generate a date variable using the functions as.Date()
+```{r create-ymd}
+#paste YMD and sep is the - in between
+#[ , new col]
+met <- met[ , ymd := as.Date(paste(year, month, day, sep = "-"))]
+```
+
+Using the data.table::week function, keep the observations of the first week of the month.
+```{r}
+met[ , table(week(ymd))] #frequency of each week 31-35
+met$ymd[1:5] #August weeks
+met<- met[week(ymd) == 31] #subsetting data to that week
+nrow(met) #reduced dataset to 297259 rows (first week of August)
+```
+
+Check no 9999s in other important variables
+```{r check-max}
+met[ , .(
+  temp = max(temp, na.rm = T),
+  rh = max(rh, na.rm = T),
+  wind.sp = max(wind.sp, na.rm = T),
+  vis.dist = max(vis.dist, na.rm = T),
+  dew.point = max(dew.point, na.rm = T),
+  lat = max(lat, na.rm = T),
+  lon = max(lon, na.rm = T),
+  elev = max(elev, na.rm = T)
+)]
+```
+
+Compute the mean by station of the variables temp, rh, wind.sp, vis.dist, dew.point, lat, lon, and elev.
+```{r check-mean}
+met_avg <- met[ , .(
+  temp = mean(temp, na.rm = T),
+  rh = mean(rh, na.rm = T),
+  wind.sp = mean(wind.sp, na.rm = T),
+  vis.dist = mean(vis.dist, na.rm = T),
+  dew.point = mean(dew.point, na.rm = T),
+  lat = mean(lat, na.rm = T),
+  lon = mean(lon, na.rm = T),
+  elev = mean(elev, na.rm = T)
+), by = "USAFID"]
+```
+
+Create a region variable for NW, SW, NE, SE based on lon = -98.00 and lat = 39.71 degrees
+```{r}
+
+```
+
+Create a categorical variable for elevation as in the lecture slides
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
