@@ -202,5 +202,5 @@ rhmap <- leaflet(met_avg) %>%
           title='Relative Humid.', opacity=1)
 rhmap
 ```
-Humidity is higher on the east coast compared to west coast.
+Humidity is higher on the east coast compared to west coast. 
 
