@@ -1,0 +1,56 @@
+---
+title: "lab06"
+author: "Misha Khan"
+date: "2022-09-28"
+output: html_document
+---
+```{r}
+library(tidytext)
+library(tidyverse)
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(forcats)
+```
+
+```{r load-data, cache = TRUE}
+#cache = TRUE saves the data
+if (!file.exists("mtsamples.csv"))
+  download.file(
+    url = "https://raw.githubusercontent.com/USCbiostats/data-science-data/master/00_mtsamples/mtsamples.csv",
+    destfile = "mtsamples.csv",
+    method   = "libcurl",
+    timeout  = 60
+  )
+mts <- read.csv("mtsamples.csv")
+dim(mts) 
+```
+```{r}
+#this is a dataframe, not ideal for dplyr -> change to tibble
+mts <- as_tibble(mts)
+```
+
+# Question 1: What specialties do we have?
+We can use count() from dplyr to figure out how many different categories do we have? Are these catagories related? overlapping? evenly distributed?
+```{r}
+specialties <- mts %>%
+  count(medical_specialty)
+
+specialties %>%
+  arrange(desc(n))%>%
+knitr::kable()
+ 
+```
+
+There are `nrows(specialties)` medical specialties.
+
+```{r barplot-of-specialties-count}
+specialties %>%
+  top_n(10) %>%
+  ggplot(aes(x = n, y = fct_reorder(medical_specialty, n))) +
+  geom_col()
+  
+```
+
+Distribution is not uniform.
+
