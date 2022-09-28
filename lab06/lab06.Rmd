@@ -2,7 +2,8 @@
 title: "lab06"
 author: "Misha Khan"
 date: "2022-09-28"
-output: html_document
+output: github_document
+always_allow_html: true
 ---
 ```{r}
 library(tidytext)
@@ -87,4 +88,70 @@ mts %>%
   ggplot(aes(n, fct_reorder(word, n))) +
   geom_col()
 ```
+Removing the stop words and numbers gives us a much better idea.
+
+# Question 4
+Repeat Q2 but this time tokenize into bi-grams. how does the result change if you look at tri-grams?
+```{r}
+mts %>%
+  unnest_ngrams(bigram, transcription, n = 2) %>%
+  count(bigram, sort = TRUE) %>%
+  top_n(20, n) %>%
+  ggplot(aes(n, fct_reorder(bigram, n))) +
+  geom_col()
+```
+```{r}
+mts %>%
+  unnest_ngrams(trigram, transcription, n = 3) %>%
+  count(trigram, sort = TRUE) %>%
+  top_n(20, n) %>%
+  ggplot(aes(n, fct_reorder(trigram, n))) +
+  geom_col()
+```
+Trigrams found more medical word groups than bigrams
+
+# Question 5
+Using the results you got from questions 4. Pick a word and count the words that appears after and before it.
+```{r}
+ptbigram <-
+  mts %>%
+  unnest_ngrams(bigram, transcription, n = 2) %>%
+  separate(bigram, into = c("word1", "word2"), sep = " ") %>%
+  select(word1, word2) %>%
+  filter(word1 == "patient" | word2 == "patient")
+
+```
+
+Words appearing before patient: 
+```{r}
+ptbigram %>%
+  filter(word2 == "patient") %>%
+  count(word1, sort = T) %>%
+  anti_join(stop_words, by = c('word1' = 'word')) %>%
+  top_n(10) %>%
+knitr::kable()
+```
+
+Words appearing after patient: 
+```{r}
+ptbigram %>%
+  filter(word1 == "patient") %>%
+  count(word2, sort = T) %>%
+  anti_join(stop_words, by = c('word2' = 'word')) %>%
+  top_n(10) %>%
+knitr::kable()
+```
+# Question 6
+Which words are most used in each of the specialties. you can use group_by() and top_n() from dplyr to have the calculations be done within each specialty. Remember to remove stopwords. How about the most 5 used words?
+```{r}
+mts %>%
+  unnest_tokens(word, transcription) %>%
+  group_by(medical_specialty) %>%
+  count(word, sort = TRUE) %>%
+  filter(!(word %in% stop_words$word) & !grepl(pattern = "^[0-9]+$", x = word)) %>%
+  top_n(5, n) %>%
+  arrange(medical_specialty, desc(n))%>%
+  knitr::kable()
+```
+
 
