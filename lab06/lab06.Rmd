@@ -9,6 +9,7 @@ library(tidytext)
 library(tidyverse)
 library(data.table)
 library(dplyr)
+library(dtplyr)
 library(ggplot2)
 library(forcats)
 ```
@@ -53,4 +54,37 @@ specialties %>%
 ```
 
 Distribution is not uniform.
+
+# Question 2
+Tokenize the the words in the transcription column
+Count the number of times each token appears
+Visualize the top 20 most frequent words
+Explain what we see from this result. Does it makes sense? What insights (if any) do we get?
+```{r}
+mts %>%
+  unnest_tokens(word, transcription) %>%
+  count(word, sort = TRUE) %>%
+  top_n(20, n) %>%
+  ggplot(aes(n, fct_reorder(word, n))) +
+  geom_col()
+```
+
+There are a lot of stopwords here, non specific to medical text.
+We do see "patient", phew!
+
+# Question 3
+Redo Q2 visualization but remove stopwords before
+Bonus points if you remove numbers as well
+What do we see know that we have removed stop words? Does it give us a better idea of what the text is about?
+```{r}
+mts %>%
+  unnest_tokens(word, transcription) %>%
+  count(word, sort = TRUE) %>%
+  anti_join(stop_words, by = c("word")) %>%
+ #use regex to filter our numbers [0-9] +$ means incl any number larger than 10
+  filter(!grepl(pattern = "^[0-9]+$", x = word)) %>%
+  top_n(20, n) %>%
+  ggplot(aes(n, fct_reorder(word, n))) +
+  geom_col()
+```
 
