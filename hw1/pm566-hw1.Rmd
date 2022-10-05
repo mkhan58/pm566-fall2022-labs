@@ -107,6 +107,9 @@ Show locations of sites (use different colors for each year)
 Summarize the spatial distribution of the monitoring sites
 
 ```{r}
+site_location <- (unique(df[,c("SITE_LATITUDE","SITE_LONGITUDE")]))  
+dim(site_location)
+
 site_location <-
   df %>%
   select(SITE_LATITUDE, SITE_LONGITUDE, year)
