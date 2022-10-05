@@ -1,0 +1,252 @@
+---
+title: "pm566-hw1"
+author: "Misha Khan"
+date: "2022-09-22"
+output: github_document
+always_allow_html: true
+---
+```{r install-libraries}
+library(lubridate)
+library(tidyverse)
+library(data.table)
+library(dtplyr)
+library(readr)
+library(Hmisc)
+library(skimr) 
+library(leaflet)
+```
+
+# Step 1. Read in 2004 & 2019 data
+Read in data using data.table
+Check dimensions, headers, footers, variable names/types
+Check for data issues
+Write a summary of your finding
+```{r}
+df.2004 <- data.table::fread("2004data.csv")
+df.2019 <- data.table::fread("2019data.csv")
+```
+
+### Examining + cleaning df.2004
+```{r}
+dim(df.2004) #19,233 observations x 20 variables 
+#names(df.2004)
+#str(df.2004)
+summary(df.2004)
+```
+There are 19,233 observations and 20 variables (19,233 rows, 20 columns).
+
+#### Let's see what has NA values by using skimr
+```{r}
+#Hmisc::describe(df.2004)
+
+#skimr separates character variables, shows # missing
+skimr::skim(df.2004)
+```
+Site Name has 229 empty & CBSA_Name has 1,253 empty.
+
+#### Let's clean those columns
+```{r}
+#Site Name
+df.2004 <- df.2004[-which(df.2004$`Site Name` == ""), ]
+```
+
+```{r}
+#CBSA_Name
+df.2004 <- df.2004[-which(df.2004$CBSA_NAME == ""), ]
+```
+After removing NA values in df.2004, observations decreased from 19,233 to 17,751 observations (removed 1,482 values).
+
+#### Let's change date from character to date type.
+```{r}
+df.2004$Date <- as.Date(df.2004$Date, format = "%m/%d/%Y")
+class(df.2004$Date)
+```
+
+### Examining + cleaning df.2019
+```{r}
+dim(df.2019)
+names(df.2019)
+summary(df.2019)
+```
+There are 53,156 observations and 20 variables (53,156 rows, 20 columns).
+
+#### Let's see what has NA values by using skimr
+```{r}
+skimr::skim(df.2019)
+```
+Site Name has 102 empty & CBSA_Name has 4,181 empty, CBSA_CODE has 4,181 empty
+
+#### Let's clean those columns
+```{r}
+#Site Name
+df.2019 <- df.2019[-which(df.2019$`Site Name` == ""), ]
+#CBSA_NAME
+df.2019 <- df.2019[-which(df.2019$CBSA_NAME == ""), ]
+```
+After removing NA values in df.2019, observations decreased from 53,156 to 48,873 observations (removed 4,283 values).
+
+#### Let's change date from character to date type.
+```{r}
+df.2019$Date <- as.Date(df.2019$Date, format = "%m/%d/%Y")
+class(df.2019$Date)
+```
+
+# Step 2. Combine 2004 and 2019 into one data frame
+Use Date variable to create a new column for year (identifier)
+Change the names of key variables so they are easier to refer in code
+```{r}
+df.2004 <- cbind.data.frame(df.2004, year = 2004)
+df.2019 <- cbind.data.frame(df.2019, year = 2019)
+
+df <- data.frame(rbind(df.2004, df.2019))
+```
+The new combined data frame has 66,624 values and 21 variables (with year as identifier).
+
+# Step 3. Create a basic map in leaflet()
+Show locations of sites (use different colors for each year)
+Summarize the spatial distribution of the monitoring sites
+
+```{r}
+site_location <-
+  df %>%
+  select(SITE_LATITUDE, SITE_LONGITUDE, year)
+
+#Generate color palette (red for 2004, blue for 2019)
+site.pal <- colorNumeric(c('red', 'blue'),
+                         domain = df$year)
+```
+
+```{r}
+#Generating color palette
+site_map <- leaflet(site_location) %>% 
+  # The looks of the Map
+  addProviderTiles('CartoDB.Positron') %>% 
+  # Some circles
+  addCircles(
+    lat = ~SITE_LATITUDE, lng=~SITE_LONGITUDE,
+    label = ~paste0(year), color = ~ site.pal(year),
+    opacity = 1, fillOpacity = 1, radius = 500
+    ) %>%
+  # And a pretty legend
+  addLegend('bottomleft', pal=site.pal, values=site_location$year,
+          title='Monitoring Sites', opacity=1)
+site_map
+```
+Above is a map of monitoring sites from 2004 and 2019 using the combined dataset.
+Red is monitoring sites in 2004 and blue is for 2019.
+Clearly, there are more monitoring sites in 2019 distributed all throughout California.
+2019 sites appeared in non heavily populated areas and near the beaches.
+In 2004, the monitoring sites were few and very spread out and focused on major cities.
+
+# Step 4. Check for any missing or implausible values of PM2.5 in the combined set
+Explore proportions of each and provide summary of any temporal patterns 
+```{r}
+#Rename column to make it easier
+names(df)[names(df) == "Daily.Mean.PM2.5.Concentration"] <- "pm"
+skimr::skim(df)
+```
+There are no missing values in the dataset.
+
+### Let's take a closer look at PM2.5
+```{r}
+summary(df$pm)
+```
+The mean of Daily Mean PM2.5 Concentration is 9.35.
+We can see that there is a negative minimum value which can be implausible.
+
+### Filter negative PM2.5 values
+```{r}
+df <- df %>%
+  filter(pm >= 0)
+summary(df$pm)
+```
+After filtering, df decreased from 66,624 values to 66,343 values (removed 281 negative/implausible values)
+The minimum value is 0 now.
+
+### Observe PM2.5 patterns
+```{r}
+summary(df.2004$`Daily Mean PM2.5 Concentration`)
+```
+The average mean of PM2.5 in 2004 is 13.45.
+```{r}
+summary(df.2019$`Daily Mean PM2.5 Concentration`)
+```
+The average mean of PM2.5 in 2019 is 7.86.
+
+### Proportion
+```{r}
+#Creating new df
+pm_prop <-
+  df %>%
+  select(pm ,year)
+```
+
+```{r}
+#Display proportions
+tab <- prop.table(table(pm_prop), 1) *100
+```
+
+```{r}
+#2004 proportion mean
+mean(tab[,2])
+
+#2019 proportion mean
+mean(tab[,1])
+```
+2004 PM2.5: 39.82%
+2019 PM2.5: 60.18%
+
+### 2004 PM2.5 values
+```{r}
+plot(as.numeric(dimnames(tab)$pm),tab[,1],  
+     xlab = "Value", ylab = "Single [%]")
+```
+The value of PM2.5 increases in 2004.
+
+### 2019 PM2.5 values
+```{r}
+plot(as.numeric(dimnames(tab)$pm),tab[,2],  
+     xlab = "Value", ylab = "Single [%]")
+```
+The value of PM2.5 decreases in 2019.
+
+# Step 5. Explore the main questions of interest at three different spatial levels
+Create EDA (boxplot, histogram, line plots) and summary statistics
+State, County, Site in LA
+
+### Histogram for State
+```{r}
+hist(df.2004$`Daily Mean PM2.5 Concentration`, breaks = 100)
+```
+
+```{r}
+hist(df.2019$`Daily Mean PM2.5 Concentration`, breaks = 100)
+```
+After plotting the histogram of Mean PM 2.5 Concentration for 2004 and 2019, 
+we can see there is a heavy right tailed skew. Majority of the values
+lie between 0-20.
+
+###Line for LA County
+```{r}
+la_site <- subset(df, df$COUNTY == 'Los Angeles')
+
+ggplot(la_site, aes(x = `Site.Name`, y = pm, color=as.factor(year))) +
+  labs(title = "Daily Mean PM2.5 Concentration per LA County 2004 vs 2019", x = "Site", Y = "Value") +
+  geom_line() +
+  facet_wrap(~ `Site.Name`, nrow = 5) 
+```
+### Site Name
+```{r}
+#Trying to find PM concentration by site name
+#df$Site.Name %>%
+#  ggplot(mapping = aes(x = Site.Name, y = pm)) + 
+#    stat_summary(fun.data = mean_sdl, geom = "pointrange") +
+#    stat_summary(fun.data = mean_sdl, geom = "errorbar")
+```
+
+```{r} 
+df %>% 
+  ggplot() +
+  geom_boxplot(mapping = aes(x = year, y = pm, group = year)) 
+```
+Mean is slightly lower in 2019 for PM2.5 concentration compared to 2004.
