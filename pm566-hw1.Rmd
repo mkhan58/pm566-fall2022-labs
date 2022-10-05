@@ -40,20 +40,19 @@ There are 19,233 observations and 20 variables (19,233 rows, 20 columns).
 #Hmisc::describe(df.2004)
 
 #skimr separates character variables, shows # missing
-skimr::skim(df.2004)
+#skimr::skim(df.2004)
+#File is too large so commented out
 ```
 Site Name has 229 empty & CBSA_Name has 1,253 empty.
 
 #### Let's clean those columns
 ```{r}
 #Site Name
-
-df.2004 <- df.2004[-which(df.2004$`Site.Name` == ""), ]
+df.2004 <- df.2004[-which(df.2004$`Site Name` == ""), ]
 ```
 
 ```{r}
 #CBSA_Name
-
 df.2004 <- df.2004[-which(df.2004$CBSA_NAME == ""), ]
 ```
 After removing NA values in df.2004, observations decreased from 19,233 to 17,751 observations (removed 1,482 values).
@@ -66,15 +65,17 @@ class(df.2004$Date)
 
 ### Examining + cleaning df.2019
 ```{r}
-dim(df.2019)
-names(df.2019)
-summary(df.2019)
+#dim(df.2019)
+#names(df.2019)
+#summary(df.2019)
+#File is too large so commented out
 ```
 There are 53,156 observations and 20 variables (53,156 rows, 20 columns).
 
 #### Let's see what has NA values by using skimr
 ```{r}
-skimr::skim(df.2019)
+#skimr::skim(df.2019)
+#File is too large so commented out
 ```
 Site Name has 102 empty & CBSA_Name has 4,181 empty, CBSA_CODE has 4,181 empty
 
