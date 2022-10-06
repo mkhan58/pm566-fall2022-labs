@@ -14,6 +14,7 @@ library(readr)
 library(Hmisc)
 library(skimr) 
 library(leaflet)
+library(webshot)
 ```
 
 # Step 1. Read in 2004 & 2019 data
@@ -107,12 +108,12 @@ Show locations of sites (use different colors for each year)
 Summarize the spatial distribution of the monitoring sites
 
 ```{r}
-site_location <- (unique(df[,c("SITE_LATITUDE","SITE_LONGITUDE")]))  
+site_location <- (unique(df[,c("SITE_LATITUDE","SITE_LONGITUDE","year")]))  
 dim(site_location)
 
-site_location <-
-  df %>%
-  select(SITE_LATITUDE, SITE_LONGITUDE, year)
+#site_location <-
+#  df %>%
+#  select(SITE_LATITUDE, SITE_LONGITUDE, year)
 
 #Generate color palette (red for 2004, blue for 2019)
 site.pal <- colorNumeric(c('red', 'blue'),
@@ -128,7 +129,7 @@ site_map <- leaflet(site_location) %>%
   addCircles(
     lat = ~SITE_LATITUDE, lng=~SITE_LONGITUDE,
     label = ~paste0(year), color = ~ site.pal(year),
-    opacity = 1, fillOpacity = 1, radius = 500
+    opacity = 0.5, fillOpacity = 0.25, radius = 500
     ) %>%
   # And a pretty legend
   addLegend('bottomleft', pal=site.pal, values=site_location$year,
