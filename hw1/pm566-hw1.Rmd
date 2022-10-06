@@ -117,7 +117,7 @@ dim(site_location)
 
 #Generate color palette (red for 2004, blue for 2019)
 site.pal <- colorNumeric(c('red', 'blue'),
-                         domain = df$year)
+                         domain = site_location$year)
 ```
 
 ```{r}
