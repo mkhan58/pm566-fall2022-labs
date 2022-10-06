@@ -174,7 +174,7 @@ summary(df.2004$`Daily Mean PM2.5 Concentration`)
 The average mean of PM2.5 in 2004 is 13.45.
 ```{r}
 summary(df.2019$`Daily Mean PM2.5 Concentration`)
-```
+``` 
 The average mean of PM2.5 in 2019 is 7.86.
 
 ### Proportion
