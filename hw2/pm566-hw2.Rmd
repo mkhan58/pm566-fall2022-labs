@@ -1,0 +1,301 @@
+---
+title: "PM566 Homework 2"
+author: "Misha Khan"
+date: "2022-10-06"
+output: github_document
+always_allow_html: true
+---
+For this assignment, we will be analyzing data from USC’s Children’s Health Study. The learning objectives are to conduct data wrangling and visualize the data with key questions in mind.
+```{r install-libraries}
+library(lubridate)
+library(tidyverse)
+library(data.table)  
+library(dtplyr)
+library(dplyr)
+library(readr)
+library(Hmisc)
+library(skimr) 
+library(leaflet)
+library(webshot)
+library(psych)
+```
+
+# Data Wrangling
+Two data sets: individual and regional CHS
+**individual - personal and health characteristics of children in 12 communities in Socal**
+**regional - air quality at a community level**
+### Merge data sets using location variable
+
+```{r read-data}
+indv <- read.csv("chs_individual.csv")
+reg <- read.csv("chs_regional.csv")
+```
+
+Merged data set: chs
+```{r}
+#Location variable = "townname"
+chs <- merge(
+  # Data
+  x     = indv,      
+  y     = reg, 
+  # List of variables to match
+  by  = "townname",
+  # Which obs to keep?
+  all.x = TRUE,      
+  all.y = FALSE
+  )
+
+```
+
+## 1. After merging the data, make sure you don’t have any duplicates by counting the number of rows. Make sure it matches.
+```{r}
+skimr::skim(chs)
+```
+indv data set: 1200 rows, 23 columns
+reg data set: 12 rows, 27 columns
+chs data set: 1200 rows, 49 columns
+
+When the data sets are merged, the number of rows still stays the same but the columns increases (23 + 27 - 1 = 49 total cols).
+There is no duplicate number of rows, everything matches (nothing lost or duplicated).
+
+### In the case of missing values, impute data using the average within the variables “male” and “hispanic.” 
+```{r}
+#Output the number of columns with number of missing values
+which(colSums(is.na(chs)) > 0)
+```
+```{r}
+#chs <- data.table(chs)
+#chs[, bmi_imp := fcoalesce(bmi, mean(bmi, na.rm = TRUE)), by = .(male, hispanic)]
+#chs[ , fev_imp := fcoalesce(fev, mean(fev, na.rm = TRUE)), by = .(male, hispanic)]
+```
+
+## 2. Create a new categorical variable named “obesity_level” using the BMI measurement (underweight BMI<14; normal BMI 14-22; overweight BMI 22-24; obese BMI>24). 
+```{r}
+chs <-
+  chs %>%
+  mutate(obesity_level = case_when(chs$bmi < 14  ~ 'Underweight', 
+                              chs$bmi >= 14 & chs$bmi < 22  ~ 'Normal', 
+                              chs$bmi >= 22 & chs$bmi < 24  ~ 'Overweight', 
+                              chs$bmi >= 24  ~ 'Obese'))
+```
+
+### To make sure the variable is rightly coded, create a summary table that contains the minimum BMI, maximum BMI, and the total number of observations per category.
+```{r}
+chs %>%
+  group_by(obesity_level) %>%
+  summarise(
+    min_bmi  = min(bmi), 
+    max_bmi  = max(bmi),
+    mean_bmi = mean(bmi),
+    n_bmi    = n()) %>%
+knitr::kable()
+```
+
+## 3. Create another categorical variable named “smoke_gas_exposure” that summarizes “Second Hand Smoke” and “Gas Stove.” The variable should have four categories in total
+```{r}
+chs <-
+  chs %>%
+  mutate(smoke_gas_exposure = case_when(chs$smoke == 0 & chs$gasstove == 0 ~ 'No exposure',
+                                        chs$smoke == 1 & chs$gasstove == 1 ~ 'Smoke & gas exposure',
+                                        chs$smoke == 0 & chs$gasstove == 1 ~ 'Gas exposure',
+                                        chs$smoke == 1 & chs$gasstove == 0 ~ 'Smoke exposure'))
+table(chs$smoke_gas_exposure)
+```
+
+
+## Create four summary tables showing the average (or proportion, if binary) and sd of “Forced expiratory volume in 1 second (ml)” and asthma indicator by town, sex, obesity level, and “smoke_gas_exposure.”
+```{r}
+chs %>%
+  group_by(townname) %>%
+  summarise(
+    n    = n(),
+    mean_fev  = mean(fev), 
+    sd_fev  = sd(fev),
+    mean_fev = mean(fev))
+    #prop_asthma = sum(asthma)/n()*100) %>%
+  #distinct(townname, .keep_all = T) %>%
+#knitr::kable()
+```
+# EDA
+Primary questions of interest
+**What is the association between BMI and FEV?**
+**What is the association between smoke and gas exposure and FEV?**
+**What is the association between PM2.5 and FEV?**
+
+## Checklist
+```{r}
+#Check the dimensions and headers and footers of the data
+dim(chs)
+```
+
+```{r}
+#Check the variable types in the data
+str(chs)
+```
+
+```{r}
+#Conduct some summary statistics to answer the initial question
+summary(chs$bmi)
+summary(chs$fev)
+summary(chs$smoke)
+summary(chs$gasstove)
+summary(chs$pm2_5_fr)
+```
+
+## 1. Facet plot showing scatterplots with regression lines of BMI vs FEV by “townname”.
+
+```{r}
+chs %>%
+  ggplot(aes(x = bmi, y = fev, group = townname)) +
+  geom_point(mapping = aes(x = bmi, y = fev, color = townname)) +
+  geom_smooth(se = T, method = "lm") +
+  scale_color_brewer(palette = "Paired") +
+  facet_wrap( ~ townname, nrow= 3) +
+  ggtitle("BMI vs FEV per Town") +
+  xlab("BMI") +
+  ylab("FEV (mL)")
+```
+All the towns show a positive linear relationship with BMI and FEV meaning as BMI increases,
+FEV also increases. Towns like Lake Elsinore, Lompoc, Long Beach, San Dimas, Santa Maria, and Upland
+have a fairly steeper slope just at a glace. Additional statistical analysis will need to be conducted
+to confirm.
+
+# 2. Stacked histograms of FEV by BMI category and FEV by smoke/gas exposure. Use different color schemes than the ggplot default.
+```{r}
+chs %>%
+  ggplot(mapping = aes(x = fev, fill = obesity_level)) + 
+  geom_histogram(position = "identity", alpha = 0.7, binwidth = 100, color = "black") +
+  scale_fill_brewer(palette = "Dark2") +
+  ggtitle("FEV per Obesity Level Distribution") +
+  xlab("FEV (mL)") +
+  ylab("Count")
+```
+Here is the distribution breakdown of FEV per obesity levels. Normal BMI level looks like
+to have a normal distribution. The majority of individuals with normal BMI level have an FEV
+around ~2000 mL on average. We can see that individuals with a underweight BMI level have a lower
+FEV while those with obese BMI level have a higher FEV.
+
+```{r}
+chs %>%
+  ggplot(mapping = aes(x = fev, fill = smoke_gas_exposure)) + 
+  geom_histogram(position = "identity", alpha = 0.7, binwidth = 100, color = "black") +
+  scale_fill_brewer(palette = "Set1") +
+  ggtitle("FEV per Smoke Gas Exposure Distribution") +
+  xlab("FEV (mL)") +
+  ylab("Count")
+```
+Here is a distribution breakdown of FEV per smoke gas exposure. The majority of individuals
+fall into the gas exposure category. The gas exposure distribution lies around the middle ~2000 mL.
+The rest of the other categories also lie around the middle but have lower count of individuals. 
+
+## 3. Barchart of BMI by smoke/gas exposure.
+```{r}
+chs %>%
+  ggplot(mapping = aes(x = obesity_level, fill = factor(smoke_gas_exposure))) + 
+  geom_bar(position = "dodge") +
+  scale_fill_brewer(palette = "Paired") +
+  ggtitle("BMI per Smoke Gas Exposure") +
+  xlab("BMI") +
+  ylab("Obesity Level") +
+  labs(fill = "Exposure")
+```
+Here is a barchart of smoke and gas exposure per obesity level. 
+Individuals with a normal BMI level have the highest exposure to gas (over 450).
+Across all BMI categories, gas exposure is the highest.
+
+## 4. Statistical summary graphs of FEV by BMI and FEV by smoke/gas exposure category.
+```{r}
+chs %>%
+    ggplot(mapping = aes(x = obesity_level, y = fev, color = obesity_level)) + 
+    stat_summary(fun.data = mean_sdl, geom = "pointrange") +
+    stat_summary(fun.data = mean_sdl, geom = "errorbar")+
+  labs (title = "Statisitical Summary of FEV by BMI")
+```
+
+ADD INTERPRETATION
+
+
+```{r}
+chs %>%
+    ggplot(mapping = aes(x = smoke_gas_exposure, y = fev, color = smoke_gas_exposure)) + 
+    stat_summary(fun.data = mean_sdl, geom = "pointrange") +
+    stat_summary(fun.data = mean_sdl, geom = "errorbar")+
+  labs (title = "Statisitical Summary of FEV by Exposure")
+```
+
+ADD INTERPRETATION
+
+## 5. A leaflet map showing the concentrations of PM2.5 mass in each of the CHS communities.
+```{r}
+pm.pal <- colorFactor(c('red', 'yellow', 'blue', 'green'), domain = chs$pm25_mass)
+```
+
+
+```{r}
+#chs[!is.na(pm25_mass)]%>%
+  pm_map <- 
+  leaflet(chs) %>% 
+  addProviderTiles('CartoDB.Positron') %>% 
+  addCircles(
+    lat = ~lat, 
+    lng = ~lon,
+    label = ~paste0(chs$pm25_mass),
+    color = ~ pm.pal(chs$pm25_mass),
+    opacity = 0.5,
+    fillOpacity = 1,
+    radius = 500
+    ) %>%
+  addLegend('bottomleft', 
+            pal = pm.pal, 
+            values = chs$pm25_mass,
+            title = 'PM 2.5 Mass', 
+            opacity = 1)
+pm_map
+```
+We can see from the leaflet plot that the higher concentration of PM 2.5 mass are in more centrally located
+in Southern California (Ontario, Riverside). As we move away from that area, PM 2.5 mass decreases.
+Areas like San Luis Obispo, Santa Maria, Santa Barbara, and San Diego show lower levels of PM 2.5 mass concentration.
+
+## 6. Choose a visualization to examine whether PM2.5 mass is associated with FEV.
+```{r}
+chs %>%
+    ggplot(mapping = aes(x = pm25_mass, y = fev, color = fev)) + 
+    geom_point(mapping = aes(x = pm25_mass, y = fev)) +
+    scale_color_gradient(low = "blue", high = "red") +
+    geom_jitter() +
+    geom_smooth(method = lm, se = F, col = "black")
+```
+Above is a graph of the relationship between PM 2.5 mass and FEV.
+We see three separate ranges of PM 2.5 mass: 10, 20, 30.
+As the PM 2.5 mass increases, the black line shows a slight decrease in FEV.
+PM 2.5 mass of 10 has the highest FEV points while PM 2.5 mass 30 is slighty lower.
+
+
+
+
+
+```{r}
+#Group the columns with missing values (integer and numeric cols)
+fix_na <- c("agepft", 
+            "height", 
+            "weight", 
+            "bmi", 
+            "asthma", 
+            "father_asthma", 
+            "mother_asthma", 
+            "wheeze", 
+            "hayfever",
+            "allergy",
+            "educ_parent",
+            "smoke", 
+            "gasstove",
+            "fev",
+            "fvc",
+            "mmef",
+            "no_24hr",
+            "pm2_5_fr")
+
+sum(is.na(chs[fix_na]))
+
+```
+
