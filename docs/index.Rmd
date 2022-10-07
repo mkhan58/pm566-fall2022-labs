@@ -65,6 +65,7 @@ ids <- stringr::str_extract_all(ids, "<Id>[[:digit:]]+</Id>")[[1]]
 # Remove all the leading and trailing <Id> </Id>. Make use of "|"
 ids <- stringr::str_remove_all(ids, "</?Id>")
 #? means i do or dont find the /
+head(ids)
 ```
 
 With the ids in hand, we can now try to get the abstracts of the papers. As before, we will need to coerce the contents (results) to a list using:
@@ -79,6 +80,7 @@ retmax: 1000
 rettype: abstract
 Pro-tip: If you want GET() to take some element literal, wrap it around I() (as you would do in a formula in R). For example, the text "123,456" is replaced with "123%2C456". If you don’t want that behavior, you would need to do the following I("123,456").
 
+Grab publications with Pudmed IDs
 ```{r}
 publications <- GET(
   url   = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
@@ -92,6 +94,41 @@ publications <- GET(
 
 # Turning the output into character vector
 publications <- httr::content(publications)
-publications_txt <- as.character(publications)
+#publications_txt <- as.character(publications)
+```
+
+Q5: Form a database
+We want to build a dataset which includes the title and the abstract of the paper. The title of all records is enclosed by the HTML tag ArticleTitle, and the abstract by Abstract.
+```{r}
+pub_char_list <- xml2::xml_children(publications)
+pub_char_list <- sapply(pub_char_list, as.character)
+```
+
+Now, extract the abstract and article title for each one of the elements of pub_char_list.
+```{r}
+abstracts <- str_extract(pub_char_list, "<Abstract>[[:print:][:space:]]+</Abstract>")
+abstracts[[1]]
+abstracts <- str_remove_all(abstracts, "</?[[:alnum:]- =\"]+>") 
+abstracts[[1]]
+abstracts <- str_replace_all(abstracts, "[[:space:]]+"," ")
+abstracts[[1]]
+```
+
+Now get the titles:
+```{r}
+titles <- str_extract(pub_char_list, "<ArticleTitle>[[:print:][:space:]]+</ArticleTitle>")
+titles[[1]]
+titles <- str_remove_all(titles, "</?[[:alnum:]- =\"]+>")
+titles[[1]]
+```
+
+Finally the dataset:
+```{r}
+database <- data.frame(
+  PubMedId = ids,
+  Title    = titles,
+  Abstract = abstracts
+)
+knitr::kable(database[1:8,], caption = "Some papers about Covid19 and Hawaii")
 ```
 
