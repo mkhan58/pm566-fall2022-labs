@@ -64,19 +64,20 @@ There is no duplicate number of rows, everything matches (nothing lost or duplic
 which(colSums(is.na(chs)) > 0)
 ```
 ```{r}
-#chs <- data.table(chs)
-#chs[, bmi_imp := fcoalesce(bmi, mean(bmi, na.rm = TRUE)), by = .(male, hispanic)]
-#chs[ , fev_imp := fcoalesce(fev, mean(fev, na.rm = TRUE)), by = .(male, hispanic)]
+chs <- data.table(chs)
+chs[, bmi_imp := fcoalesce(bmi, mean(bmi, na.rm = TRUE)), by = .(male, hispanic)]
+chs[ , fev_imp := fcoalesce(fev, mean(fev, na.rm = TRUE)), by = .(male, hispanic)]
 ```
 
 ## 2. Create a new categorical variable named “obesity_level” using the BMI measurement (underweight BMI<14; normal BMI 14-22; overweight BMI 22-24; obese BMI>24). 
 ```{r}
+chs <- as.data.frame(chs)
 chs <-
   chs %>%
-  mutate(obesity_level = case_when(chs$bmi < 14  ~ 'Underweight', 
-                              chs$bmi >= 14 & chs$bmi < 22  ~ 'Normal', 
-                              chs$bmi >= 22 & chs$bmi < 24  ~ 'Overweight', 
-                              chs$bmi >= 24  ~ 'Obese'))
+  mutate(obesity_level = case_when(chs$bmi_imp < 14  ~ 'Underweight', 
+                              chs$bmi_imp >= 14 & chs$bmi_imp < 22  ~ 'Normal', 
+                              chs$bmi_imp >= 22 & chs$bmi_imp < 24  ~ 'Overweight', 
+                              chs$bmi_imp >= 24  ~ 'Obese'))
 ```
 
 ### To make sure the variable is rightly coded, create a summary table that contains the minimum BMI, maximum BMI, and the total number of observations per category.
@@ -109,12 +110,12 @@ chs %>%
   group_by(townname) %>%
   summarise(
     n    = n(),
-    mean_fev  = mean(fev), 
-    sd_fev  = sd(fev),
-    mean_fev = mean(fev))
+    mean_fev  = mean(fev_imp), 
+    sd_fev  = sd(fev_imp),
+    mean_fev = mean(fev_imp)) %>%
     #prop_asthma = sum(asthma)/n()*100) %>%
   #distinct(townname, .keep_all = T) %>%
-#knitr::kable()
+knitr::kable()
 ```
 # EDA
 Primary questions of interest
