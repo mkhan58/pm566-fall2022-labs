@@ -45,6 +45,7 @@ chs <- merge(
   all.y = FALSE
   )
 
+chs <- data.table(chs)
 ```
 
 ## 1. After merging the data, make sure you don’t have any duplicates by counting the number of rows. Make sure it matches.
@@ -64,7 +65,6 @@ There is no duplicate number of rows, everything matches (nothing lost or duplic
 which(colSums(is.na(chs)) > 0)
 ```
 ```{r}
-chs <- data.table(chs)
 chs[, bmi_imp := fcoalesce(bmi, mean(bmi, na.rm = TRUE)), by = .(male, hispanic)]
 chs[ , fev_imp := fcoalesce(fev, mean(fev, na.rm = TRUE)), by = .(male, hispanic)]
 ```
@@ -85,9 +85,9 @@ chs <-
 chs %>%
   group_by(obesity_level) %>%
   summarise(
-    min_bmi  = min(bmi), 
-    max_bmi  = max(bmi),
-    mean_bmi = mean(bmi),
+    min_bmi  = min(bmi_imp), 
+    max_bmi  = max(bmi_imp),
+    mean_bmi = mean(bmi_imp),
     n_bmi    = n()) %>%
 knitr::kable()
 ```
@@ -100,7 +100,8 @@ chs <-
                                         chs$smoke == 1 & chs$gasstove == 1 ~ 'Smoke & gas exposure',
                                         chs$smoke == 0 & chs$gasstove == 1 ~ 'Gas exposure',
                                         chs$smoke == 1 & chs$gasstove == 0 ~ 'Smoke exposure'))
-table(chs$smoke_gas_exposure)
+table(chs$smoke_gas_exposure)%>%
+knitr::kable()
 ```
 
 
@@ -112,9 +113,8 @@ chs %>%
     n    = n(),
     mean_fev  = mean(fev_imp), 
     sd_fev  = sd(fev_imp),
-    mean_fev = mean(fev_imp)) %>%
-    #prop_asthma = sum(asthma)/n()*100) %>%
-  #distinct(townname, .keep_all = T) %>%
+    mean_fev = mean(fev_imp),
+    asthma_ind = sum(asthma, na.rm = T) / sum(!is.na(asthma)) * 100) %>%
 knitr::kable()
 ```
 # EDA
@@ -147,8 +147,8 @@ summary(chs$pm2_5_fr)
 
 ```{r}
 chs %>%
-  ggplot(aes(x = bmi, y = fev, group = townname)) +
-  geom_point(mapping = aes(x = bmi, y = fev, color = townname)) +
+  ggplot(aes(x = bmi_imp, y = fev_imp, group = townname)) +
+  geom_point(mapping = aes(x = bmi_imp, y = fev_imp, color = townname)) +
   geom_smooth(se = T, method = "lm") +
   scale_color_brewer(palette = "Paired") +
   facet_wrap( ~ townname, nrow= 3) +
@@ -164,7 +164,7 @@ to confirm.
 # 2. Stacked histograms of FEV by BMI category and FEV by smoke/gas exposure. Use different color schemes than the ggplot default.
 ```{r}
 chs %>%
-  ggplot(mapping = aes(x = fev, fill = obesity_level)) + 
+  ggplot(mapping = aes(x = fev_imp, fill = obesity_level)) + 
   geom_histogram(position = "identity", alpha = 0.7, binwidth = 100, color = "black") +
   scale_fill_brewer(palette = "Dark2") +
   ggtitle("FEV per Obesity Level Distribution") +
@@ -178,7 +178,7 @@ FEV while those with obese BMI level have a higher FEV.
 
 ```{r}
 chs %>%
-  ggplot(mapping = aes(x = fev, fill = smoke_gas_exposure)) + 
+  ggplot(mapping = aes(x = fev_imp, fill = smoke_gas_exposure)) + 
   geom_histogram(position = "identity", alpha = 0.7, binwidth = 100, color = "black") +
   scale_fill_brewer(palette = "Set1") +
   ggtitle("FEV per Smoke Gas Exposure Distribution") +
@@ -191,7 +191,7 @@ The rest of the other categories also lie around the middle but have lower count
 
 ## 3. Barchart of BMI by smoke/gas exposure.
 ```{r}
-chs %>%
+chs%>%
   ggplot(mapping = aes(x = obesity_level, fill = factor(smoke_gas_exposure))) + 
   geom_bar(position = "dodge") +
   scale_fill_brewer(palette = "Paired") +
@@ -207,24 +207,25 @@ Across all BMI categories, gas exposure is the highest.
 ## 4. Statistical summary graphs of FEV by BMI and FEV by smoke/gas exposure category.
 ```{r}
 chs %>%
-    ggplot(mapping = aes(x = obesity_level, y = fev, color = obesity_level)) + 
+    ggplot(mapping = aes(x = obesity_level, y = fev_imp, color = obesity_level)) + 
     stat_summary(fun.data = mean_sdl, geom = "pointrange") +
     stat_summary(fun.data = mean_sdl, geom = "errorbar")+
   labs (title = "Statisitical Summary of FEV by BMI")
 ```
-
-ADD INTERPRETATION
+Individuals with obese and overweight BMI levels have a higher FEV than individuals
+with normal or underweight BMI. Underweight has the lowest FEV out of all.
 
 
 ```{r}
 chs %>%
-    ggplot(mapping = aes(x = smoke_gas_exposure, y = fev, color = smoke_gas_exposure)) + 
+    ggplot(mapping = aes(x = smoke_gas_exposure, y = fev_imp, color = smoke_gas_exposure)) + 
     stat_summary(fun.data = mean_sdl, geom = "pointrange") +
     stat_summary(fun.data = mean_sdl, geom = "errorbar")+
   labs (title = "Statisitical Summary of FEV by Exposure")
 ```
 
-ADD INTERPRETATION
+There is not much of a difference in mean of FEV across smoke and gas exposure. 
+
 
 ## 5. A leaflet map showing the concentrations of PM2.5 mass in each of the CHS communities.
 ```{r}
@@ -260,7 +261,7 @@ Areas like San Luis Obispo, Santa Maria, Santa Barbara, and San Diego show lower
 ## 6. Choose a visualization to examine whether PM2.5 mass is associated with FEV.
 ```{r}
 chs %>%
-    ggplot(mapping = aes(x = pm25_mass, y = fev, color = fev)) + 
+    ggplot(mapping = aes(x = pm25_mass, y = fev_imp, color = fev_imp)) + 
     geom_point(mapping = aes(x = pm25_mass, y = fev)) +
     scale_color_gradient(low = "blue", high = "red") +
     geom_jitter() +
